@@ -20,11 +20,10 @@ EM_JS(int, getRealWidth, (), { return Module.canvas.clientWidth; });
 
 EM_JS(int, getRealHeight, (), { return Module.canvas.clientHeight; });
 
-EM_JS(void, syncDataPointers, (int width, int height, uint8_t* imageData, float* leftVoice, float* rightVoice),
+EM_JS(void, syncDataPointers, (int width, int height, uint8_t* imageData, float* voice),
 {
 	Module.imageData = new ImageData(new Uint8ClampedArray(Module.HEAPU8.buffer, imageData, width * height * 4), width, height);
-	Module.leftVoice = new Float32Array(Module.HEAPF32.buffer, leftVoice, 512);
-	Module.rightVoice = new Float32Array(Module.HEAPF32.buffer, rightVoice, 512);
+	Module.voice = new Float32Array(Module.HEAPF32.buffer, voice, 512);
 });
 
 EM_JS(void, drawToCanvas, (int width, int height),
@@ -34,14 +33,9 @@ EM_JS(void, drawToCanvas, (int width, int height),
 
 EM_JS(size_t, getVoiceData, (),
 {
-	if(audioContext && audioContext.source && audioContext.source.buffer)
+	if(audioContext && audioContext.state === "running" && audioContext.analyser)
 	{
-		audioContext.leftAnalyser.getFloatTimeDomainData(Module.leftVoice);
-		if(audioContext.source.buffer.numberOfChannels == 2)
-		{
-			audioContext.rightAnalyser.getFloatTimeDomainData(Module.rightVoice);
-			return 2;
-		}
+		audioContext.analyser.getFloatTimeDomainData(Module.voice);
 		return 1;
 	}
 	return 0;
@@ -121,7 +115,7 @@ int main(void)
 		}
 	}*/
 	
-	syncDataPointers(canvasWidth, canvasHeight, canvasData, floatVoice[0], floatVoice[1]);
+	syncDataPointers(canvasWidth, canvasHeight, canvasData, floatVoice[0]);
 	emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, 0, onWindowResize);
 	updateCanvasSize();
 	
